@@ -74,27 +74,45 @@ public class Parser extends Table {
     /**
      * Parse function for each non-terminal with error recovery.
      * NOTE: the current implementation is buggy and may throw NullPointerException.
-     * TODO: find a correct implementation for error recovery!
-     * TODO: You are free to change the method body as you wish, but not the interface!
      *
      * @param symbol the non-terminal to be passed.
      * @return the parsed value of `symbol` if parsing succeeded, otherwise `null`.
      */
-    private SemValue parse(int symbol, Set<Integer> follow) {
-        Map.Entry<Integer, List<Integer>> result = query(symbol, lookahead); // get production by lookahead symbol
+    private SemValue parse(int symbol, Set<Integer> old_follow) {
+        Map.Entry<Integer, List<Integer>> result = null;
+        Set<Integer> follow = new HashSet<Integer>(old_follow);
+        follow.addAll(followSet(symbol));
+        boolean processing_error = false;
+        while (true) {
+            result = query(symbol, lookahead);
+            if (result != null) break; // lookahead \in Begin
+            if (!processing_error) { // only print error information since first error occurs
+                error();
+                processing_error = true;
+            }
+            if (follow.contains(lookahead)) { // lookahead \in End
+                return null;
+            }
+            lookahead = lex();
+            // System.err.println("Skip " + lookahead);
+        }
+
         int actionId = result.getKey(); // get user-defined action
 
         List<Integer> right = result.getValue(); // right-hand side of production
         int length = right.size();
         SemValue[] params = new SemValue[length + 1];
 
+        boolean succ = true;
         for (int i = 0; i < length; i++) { // parse right-hand side symbols one by one
             int term = right.get(i);
             params[i + 1] = isNonTerminal(term)
                     ? parse(term, follow) // for non terminals: recursively parse it
                     : matchToken(term) // for terminals: match token
                     ;
+            if (params[i + 1] == null) succ = false;
         }
+        if (!succ) return null;
 
         params[0] = new SemValue(); // initialize return value
         act(actionId, params); // do user-defined action
