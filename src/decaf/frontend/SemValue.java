@@ -14,6 +14,7 @@ import decaf.tree.Tree.TopLevel;
 import decaf.tree.Tree.TypeLiteral;
 import decaf.tree.Tree.VarDef;
 import decaf.tree.Tree.Guard;
+import decaf.tree.Tree.Literal;
 import decaf.utils.MiscUtils;
 
 public class SemValue {
@@ -23,6 +24,8 @@ public class SemValue {
     public List<Guard> glist;
 
     public Guard guard;
+
+    public List<Literal> constList;
 
     // End: Chenyao Added
 

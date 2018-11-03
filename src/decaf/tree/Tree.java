@@ -47,10 +47,15 @@ public abstract class Tree {
 
     public static final int GUARDS = GUARD + 1;
 
+    public static final int ARRAYCONSTANT = GUARDS + 1;
+
+    public static final int SUBARRAY = ARRAYCONSTANT + 1;
+
+
     /**
      * Import clauses, of type Import.
      */
-    public static final int IMPORT = GUARDS + 1;
+    public static final int IMPORT = SUBARRAY + 1;
 
     /**
      * Class definitions, of type ClassDef.
@@ -267,6 +272,8 @@ public abstract class Tree {
     public static final int MUL = MINUS + 1;
     public static final int DIV = MUL + 1;
     public static final int MOD = DIV + 1;
+    public static final int REPEAT = MOD + 1;
+    public static final int CONCAT = REPEAT + 1;
 
     public static final int NULL = MOD + 1;
     public static final int CALLEXPR = NULL + 1;
@@ -358,6 +365,65 @@ public abstract class Tree {
             for (ClassDef d : classes) {
                 d.printTo(pw);
             }
+            pw.decIndent();
+        }
+    }
+
+    public static class ArrayConstant extends  Expr {
+        public List<Literal> elems;
+
+        public ArrayConstant(List<Literal> elems, Location loc) {
+            super(ARRAYCONSTANT, loc);
+            this.elems = elems;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayConstant(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("array const");
+            pw.incIndent();
+            if (elems.isEmpty()) {
+                pw.println("<empty>");
+            } else {
+                for (Literal l: elems) {
+                    l.printTo(pw);
+                }
+            }
+            pw.decIndent();
+        }
+    }
+
+    public static class SubArray extends Expr {
+        public Expr array;
+        public Expr start;
+        public Expr stop;
+
+        public SubArray(Expr array, Expr start, Expr stop, Location loc) {
+            super(SUBARRAY, loc);
+            this.array = array;
+            this.start = start;
+            this.stop = stop;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitSubArray(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("arrref");
+            pw.incIndent();
+            array.printTo(pw);
+            pw.println("range");
+            pw.incIndent();
+            start.printTo(pw);
+            stop.printTo(pw);
+            pw.decIndent();
             pw.decIndent();
         }
     }
@@ -1067,6 +1133,12 @@ public abstract class Tree {
                 case GE:
                     binaryOperatorPrintTo(pw, "geq");
                     break;
+                case CONCAT:
+                    binaryOperatorPrintTo(pw, "array concat");
+                    break;
+                case REPEAT:
+                    binaryOperatorPrintTo(pw, "array repeat");
+                    break;
             }
         }
     }
@@ -1450,6 +1522,14 @@ public abstract class Tree {
         }
 
         public void visitClassDef(ClassDef that) {
+            visitTree(that);
+        }
+
+        public void visitArrayConstant(ArrayConstant that) {
+            visitTree(that);
+        }
+
+        public void visitSubArray(SubArray that) {
             visitTree(that);
         }
 

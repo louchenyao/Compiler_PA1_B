@@ -439,7 +439,7 @@ ExprT2          :   Oper2 Expr3 ExprT2
                 |   /* empty */
                 ;
 
-Expr3           :   Expr4 ExprT3
+Expr3           :   Expr31 ExprT3
                     {
                         $$.expr = $1.expr;
                         if ($2.svec != null) {
@@ -451,12 +451,64 @@ Expr3           :   Expr4 ExprT3
                     }
                 ;
 
-ExprT3          :   Oper3 Expr4 ExprT3
+ExprT3          :   Oper3 Expr31 ExprT3
                     {
                         $$.svec = new Vector<Integer>();
                         $$.lvec = new Vector<Location>();
                         $$.evec = new Vector<Expr>();
                         $$.svec.add($1.counter);
+                        $$.lvec.add($1.loc);
+                        $$.evec.add($2.expr);
+                        if ($3.svec != null) {
+                            $$.svec.addAll($3.svec);
+                            $$.lvec.addAll($3.lvec);
+                            $$.evec.addAll($3.evec);
+                        }
+                    }
+                |   /* empty */
+                ;
+
+Expr31          :   Expr32 ExprCONCAT
+                    {
+                        if ($2.expr != null) {
+                            // 右结合
+                            $$.expr = new Tree.Binary(Tree.CONCAT, $1.expr, $2.expr, $1.loc);
+                        } else {
+                            $$.expr = $1.expr;
+                        }
+                    }
+                ;
+
+ExprCONCAT      :   CONCAT Expr32 ExprCONCAT
+                    {
+                        if ($3.expr != null) {
+                            // 右结合
+                            $$.expr = new Tree.Binary(Tree.CONCAT, $2.expr, $3.expr, $2.loc);
+                        } else {
+                            $$.expr = $2.expr;
+                        }
+                    }
+                |   /* empty */
+                ;
+
+Expr32          :   Expr4 ExprREPEAT
+                    {
+                        $$.expr = $1.expr;
+                        if ($2.svec != null) {
+                            for (int i = 0; i < $2.svec.size(); ++i) {
+                                $$.expr = new Tree.Binary($2.svec.get(i), $$.expr,
+                                    $2.evec.get(i), $2.lvec.get(i));
+                            }
+                        }
+                    }
+                ;
+
+ExprREPEAT      :   REPEAT Expr4 ExprREPEAT
+                    {
+                        $$.svec = new Vector<Integer>();
+                        $$.lvec = new Vector<Location>();
+                        $$.evec = new Vector<Expr>();
+                        $$.svec.add(Tree.REPEAT);
                         $$.lvec.add($1.loc);
                         $$.evec.add($2.expr);
                         if ($3.svec != null) {
@@ -701,11 +753,42 @@ Constant        :   LITERAL
                     {
                         $$.expr = new Tree.Literal($1.typeTag, $1.literal, $1.loc);
                     }
+                |   '[' ConstList ']'
+                    {
+                        $$.expr = new Tree.ArrayConstant($2.constList, $1.loc);
+                    }
                 |   NULL
                     {
                         $$.expr = new Null($1.loc);
                     }
                 ;
+
+ConstList       :   LITERAL NextConsts
+                    {
+                        $$ = new SemValue();
+                        $$.constList = new ArrayList<Tree.Literal>();
+                        $$.constList.add(new Tree.Literal($1.typeTag, $1.literal, $1.loc));
+                        $$.constList.addAll($2.constList);
+                    }
+                |   /* empty */
+                    {
+                        $$ = new SemValue();
+                        $$.constList = new ArrayList<Tree.Literal>();
+                    }
+                ;
+
+NextConsts      :   ',' LITERAL NextConsts
+                    {
+                        $$ = new SemValue();
+                        $$.constList = new ArrayList<Tree.Literal>();
+                        $$.constList.add(new Tree.Literal($2.typeTag, $2.literal, $2.loc));
+                        $$.constList.addAll($3.constList);
+                    }
+                |   /* empty */
+                    {
+                        $$ = new SemValue();
+                        $$.constList = new ArrayList<Tree.Literal>();
+                    }
 
 Actuals         :   ExprList
                     {
