@@ -19,7 +19,7 @@ IDENTIFIER   AND      OR    STATIC  INSTANCEOF
 LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
-SEALED REPEAT GUARD_SPLIT SCOPY IN CONCAT VAR FOREACH DEFAULT ':'
+SEALED REPEAT GUARD_SPLIT SCOPY IN CONCAT VAR FOREACH DEFAULT COMP_L COMP_R ':'
 
 %%
 
@@ -709,6 +709,10 @@ Expr9           :   Constant
                     {
                         $$.expr = $1.expr;
                     }
+                |   COMP_L Expr FOR IDENTIFIER IN Expr CompIf COMP_R
+                    {
+                        $$.expr = new Tree.ArrayComp($2.expr, $4.ident, $6.expr, $7.expr, $1.loc);
+                    }
                 |   READ_INTEGER '(' ')'
                     {
                         $$.expr = new Tree.ReadIntExpr($1.loc);
@@ -745,6 +749,13 @@ Expr9           :   Constant
                             $$.expr = new Tree.Ident(false, null, $1.ident, $1.loc);
                         }
                     }
+                ;
+
+CompIf          :   IF Expr
+                    {
+                        $$.expr = $2.expr;
+                    }
+                |   /* empty */
                 ;
 
 AfterNewExpr    :   IDENTIFIER '(' ')'

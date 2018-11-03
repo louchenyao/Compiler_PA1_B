@@ -53,10 +53,12 @@ public abstract class Tree {
 
     public static final int FOREACHLOOP = SUBARRAY + 1;
 
+    public static final int ARRAYCOMP = FOREACHLOOP + 1;
+
     /**
      * Import clauses, of type Import.
      */
-    public static final int IMPORT = FOREACHLOOP + 1;
+    public static final int IMPORT = ARRAYCOMP + 1;
 
     /**
      * Class definitions, of type ClassDef.
@@ -340,6 +342,40 @@ public abstract class Tree {
             pw.println("scopy");
             pw.incIndent();
             pw.println(id);
+            expr.printTo(pw);
+            pw.decIndent();
+        }
+    }
+
+    public static class ArrayComp extends Expr {
+        public Expr expr;
+        public String varbind;
+        public Expr array;
+        public Expr boolExpr;
+
+        public ArrayComp(Expr expr, String varbind, Expr array, Expr boolExpr, Location loc) {
+            super(ARRAYCOMP, loc);
+            this.expr = expr;
+            this.varbind = varbind;
+            this.array = array;
+            if (boolExpr == null) {
+                boolExpr = new Literal(Tree.BOOL, true, loc);
+            }
+            this.boolExpr = boolExpr;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayComp(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("array comp");
+            pw.incIndent();
+            pw.println("varbind " + varbind);
+            array.printTo(pw);
+            boolExpr.printTo(pw);
             expr.printTo(pw);
             pw.decIndent();
         }
@@ -1578,6 +1614,10 @@ public abstract class Tree {
         }
 
         public void visitClassDef(ClassDef that) {
+            visitTree(that);
+        }
+
+        public void visitArrayComp(ArrayComp that) {
             visitTree(that);
         }
 
