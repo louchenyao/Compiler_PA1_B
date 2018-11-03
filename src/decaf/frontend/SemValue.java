@@ -27,6 +27,12 @@ public class SemValue {
 
     public List<Literal> constList;
 
+    public Expr subStart;
+
+    public Expr subEnd;
+
+    public Expr default_;
+
     // End: Chenyao Added
 
     public int code;

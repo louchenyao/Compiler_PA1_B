@@ -624,7 +624,9 @@ Expr8           :   Expr9 ExprT8
                         if ($2.vec != null) {
                             for (SemValue v : $2.vec) {
                                 if (v.expr != null) {
-                                    $$.expr = new Tree.Indexed($$.expr, v.expr, $$.loc);
+                                    $$.expr = new Tree.Indexed($$.expr, v.expr, v.default_, $$.loc);
+                                } else if (v.subStart != null) {
+                                    $$.expr = new Tree.SubArray($$.expr, v.subStart, v.subEnd, $$.loc);
                                 } else if (v.elist != null) {
                                     $$.expr = new Tree.CallExpr($$.expr, v.ident, v.elist, v.loc);
                                     $$.loc = v.loc;
@@ -637,16 +639,21 @@ Expr8           :   Expr9 ExprT8
                     }
                 ;
 
-ExprT8          :   '[' Expr ']' ExprT8
-                    {
+ExprT8          :   '[' Expr IndexOrSub {
                         SemValue sem = new SemValue();
-                        sem.expr = $2.expr;
+                        if ($3.subEnd != null) {
+                            sem.subStart = $2.expr;
+                            sem.subEnd = $3.subEnd;
+                        } else {
+                            sem.expr = $2.expr;
+                            sem.default_ = $3.default_;
+                        }
                         $$.vec = new Vector<SemValue>();
                         $$.vec.add(sem);
-                        if ($4.vec != null) {
-                            $$.vec.addAll($4.vec);
+                        if ($3.vec != null) {
+                            $$.vec.addAll($3.vec);
                         }
-                    }
+                }
                 |   '.' IDENTIFIER AfterIdentExpr ExprT8
                     {
                         SemValue sem = new SemValue();
@@ -661,6 +668,31 @@ ExprT8          :   '[' Expr ']' ExprT8
                     }
                 |   /* empty */
                 ;
+
+
+IndexOrSub      :   ']' Default
+                    {
+                        $$.default_ = $2.default_;
+                        $$.vec = $2.vec;
+                    }
+                |   ':' Expr ']' ExprT8
+                    {
+                        $$.subEnd = $2.expr;
+                        $$.vec = $4.vec;
+                    }
+                ;
+
+Default         :   DEFAULT Expr9 ExprT8 /* 感觉这里给Default 优先级太高其实有点不合理，比如说a[5] default -3 是错误的表达。*/
+                    {
+                        $$.default_ = $2.expr;
+                        $$.vec = $3.vec;
+                    }
+                |   ExprT8
+                    {
+                        $$.vec = $1.vec;
+                    }
+                ;
+
 
 AfterIdentExpr  :   '(' Actuals ')'
                     {
