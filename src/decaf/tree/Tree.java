@@ -51,11 +51,12 @@ public abstract class Tree {
 
     public static final int SUBARRAY = ARRAYCONSTANT + 1;
 
+    public static final int FOREACHLOOP = SUBARRAY + 1;
 
     /**
      * Import clauses, of type Import.
      */
-    public static final int IMPORT = SUBARRAY + 1;
+    public static final int IMPORT = FOREACHLOOP + 1;
 
     /**
      * Class definitions, of type ClassDef.
@@ -364,6 +365,53 @@ public abstract class Tree {
             pw.incIndent();
             for (ClassDef d : classes) {
                 d.printTo(pw);
+            }
+            pw.decIndent();
+        }
+    }
+
+    public static class ForeachLoop extends Tree {
+        public boolean isVar;
+        public TypeLiteral type;
+        public String varbind;
+        public Expr array;
+        public Expr cond;
+        public Tree loopBody;
+
+        public ForeachLoop(boolean isVar, TypeLiteral type, String varbind, Expr array, Expr cond,
+                           Tree loopBody, Location loc) {
+            super(FOREACHLOOP, loc);
+            this.isVar = isVar;
+            this.type = type;
+            this.varbind = varbind;
+            this.array = array;
+            this.loopBody = loopBody;
+            if (cond == null) {
+                cond = new Literal(BOOL, true, loc);
+            }
+            this.cond = cond;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitForeachLoop(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("foreach");
+            pw.incIndent();
+            pw.print("varbind " + varbind + " " );
+            if (isVar) {
+                pw.println("var");
+            } else {
+                type.printTo(pw);
+                pw.println("");
+            }
+            array.printTo(pw);
+            cond.printTo(pw);
+            if (loopBody != null) {
+                loopBody.printTo(pw);
             }
             pw.decIndent();
         }
@@ -1562,6 +1610,10 @@ public abstract class Tree {
         }
 
         public void visitForLoop(ForLoop that) {
+            visitTree(that);
+        }
+
+        public void visitForeachLoop(ForeachLoop that) {
             visitTree(that);
         }
 
