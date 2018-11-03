@@ -13,9 +13,18 @@ import decaf.tree.Tree.MethodDef;
 import decaf.tree.Tree.TopLevel;
 import decaf.tree.Tree.TypeLiteral;
 import decaf.tree.Tree.VarDef;
+import decaf.tree.Tree.Guard;
 import decaf.utils.MiscUtils;
 
 public class SemValue {
+    // Begin: Chenyao Added
+    public boolean sealed;
+
+    public List<Guard> glist;
+
+    public Guard guard;
+
+    // End: Chenyao Added
 
     public int code;
 

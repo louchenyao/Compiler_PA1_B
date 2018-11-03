@@ -41,10 +41,16 @@ public abstract class Tree {
      */
     public static final int TOPLEVEL = 1;
 
+    public static final int SCOPY = TOPLEVEL + 1;
+
+    public static final int GUARD = SCOPY + 1;
+
+    public static final int GUARDS = GUARD + 1;
+
     /**
      * Import clauses, of type Import.
      */
-    public static final int IMPORT = TOPLEVEL + 1;
+    public static final int IMPORT = GUARDS + 1;
 
     /**
      * Class definitions, of type ClassDef.
@@ -302,6 +308,35 @@ public abstract class Tree {
 
     public abstract void printTo(IndentPrintWriter pw);
 
+    /**
+     * scopy statement
+     */
+    public static class Scopy extends Tree {
+
+        public String id;
+        public Expr expr;
+
+        public Scopy(String id, Expr expr, Location loc) {
+            super(SCOPY, loc);
+            this.id = id;
+            this.expr = expr;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitScopy(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("scopy");
+            pw.incIndent();
+            pw.println(id);
+            expr.printTo(pw);
+            pw.decIndent();
+        }
+    }
+
     public static class TopLevel extends Tree {
 
         public List<ClassDef> classes;
@@ -329,13 +364,15 @@ public abstract class Tree {
 
     public static class ClassDef extends Tree {
 
+        public boolean sealed;
         public String name;
         public String parent;
         public List<Tree> fields;
 
-        public ClassDef(String name, String parent, List<Tree> fields,
+        public ClassDef(boolean sealed, String name, String parent, List<Tree> fields,
                         Location loc) {
             super(CLASSDEF, loc);
+            this.sealed = sealed;
             this.name = name;
             this.parent = parent;
             this.fields = fields;
@@ -348,11 +385,75 @@ public abstract class Tree {
 
         @Override
         public void printTo(IndentPrintWriter pw) {
-            pw.println("class " + name + " "
+            pw.println((sealed ? "sealed " : "")
+                    + "class " + name + " "
                     + (parent != null ? parent : "<empty>"));
             pw.incIndent();
             for (Tree f : fields) {
                 f.printTo(pw);
+            }
+            pw.decIndent();
+        }
+    }
+
+    /**
+     * guard statement
+     */
+    public static class Guard extends Tree {
+
+        public Expr expr;
+        public Tree stmt;
+
+        public Guard(Expr expr, Tree stmt, Location loc) {
+            super(GUARD, loc);
+            this.expr = expr;
+            this.stmt = stmt;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitGuard(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("guard");
+            pw.incIndent();
+            expr.printTo(pw);
+            stmt.printTo(pw);
+            pw.decIndent();
+        }
+    }
+
+    /**
+     * guards statement
+     */
+    public static class Guards extends Tree {
+
+        public List<Guard> glist;
+
+        public Guards(List<Guard> glist, Location loc) {
+            super(GUARDS, loc);
+            this.glist = glist;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitGuards(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+
+
+            pw.println("guarded");
+            pw.incIndent();
+            if (glist.isEmpty()) {
+                pw.println("<empty>");
+            } else {
+                for (Guard g: glist) {
+                    g.printTo(pw);
+                }
             }
             pw.decIndent();
         }
@@ -1156,11 +1257,13 @@ public abstract class Tree {
         public Expr owner;
         public String name;
         public boolean isDefined;
+        public boolean var;
 
-        public Ident(Expr owner, String name, Location loc) {
+        public Ident(boolean var, Expr owner, String name, Location loc) {
             super(IDENT, loc);
             this.owner = owner;
             this.name = name;
+            this.var = var;
         }
 
         @Override
@@ -1170,7 +1273,7 @@ public abstract class Tree {
 
         @Override
         public void printTo(IndentPrintWriter pw) {
-            pw.println("varref " + name);
+            pw.println((var ? "var ": "varref ") + name);
             if (owner != null) {
                 pw.incIndent();
                 owner.printTo(pw);
@@ -1331,6 +1434,18 @@ public abstract class Tree {
         }
 
         public void visitTopLevel(TopLevel that) {
+            visitTree(that);
+        }
+
+        public void visitScopy(Scopy that) {
+            visitTree(that);
+        }
+
+        public void visitGuard(Guard that) {
+            visitTree(that);
+        }
+
+        public void visitGuards(Guards that) {
             visitTree(that);
         }
 

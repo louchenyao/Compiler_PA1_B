@@ -15,11 +15,11 @@ NULL   EXTENDS     THIS     WHILE   FOR
 IF     ELSE        RETURN   BREAK   NEW
 PRINT  READ_INTEGER         READ_LINE
 LITERAL
-SEALED REPEAT GUARD_SPLIT SCOPY IN CONCAT VAR FOREACH DEFAULT
 IDENTIFIER   AND      OR    STATIC  INSTANCEOF
 LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
+SEALED REPEAT GUARD_SPLIT SCOPY IN CONCAT VAR FOREACH DEFAULT ':'
 
 %%
 
@@ -98,9 +98,20 @@ ArrayType       :   '[' ']' ArrayType
                     }
                 ;
 
-ClassDef        :   CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
+ClassDef        :	Sealed CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
+					{
+						$$.cdef = new Tree.ClassDef($1.sealed, $3.ident, $4.ident, $6.flist, $1.loc);
+					}
+
+Sealed          :   SEALED
                     {
-                        $$.cdef = new Tree.ClassDef($2.ident, $3.ident, $5.flist, $1.loc);
+                        $$.sealed = true;
+                        // System.out.println("found");
+                    }
+                |   /* empty */
+                    {
+                        $$.sealed = false;
+                        // System.out.println("not found");
                     }
                 ;
 
@@ -208,9 +219,10 @@ Stmt            :   VariableDef
                             $$.stmt = $1.stmt;
                         }
                     }
-                |   IfStmt
+                |   IF IfOrGuard
                     {
-                        $$.stmt = $1.stmt;
+                        $$.stmt = $2.stmt;
+                        $$.loc = $1.loc;
                     }
                 |   WhileStmt
                     {
@@ -232,9 +244,19 @@ Stmt            :   VariableDef
                     {
                         $$.stmt = $1.stmt;
                     }
+                |   OCStmt ';'
+                    {
+                        $$.stmt = $1.stmt;
+                    }
                 |   StmtBlock
                     {
                         $$.stmt = $1.stmt;
+                    }
+                ;
+
+OCStmt         :   SCOPY '(' IDENTIFIER ',' Expr ')'
+                    {
+                        $$.stmt = new Tree.Scopy($3.ident, $5.expr, $1.loc);
                     }
                 ;
 
@@ -245,6 +267,11 @@ SimpleStmt      :   Expr Assignment
                         } else {
                             $$.stmt = new Tree.Assign($1.expr, $2.expr, $2.loc);
                         }
+                    }
+                |   VAR IDENTIFIER '=' Expr
+                    {
+                        Tree.Expr l = new Tree.Ident(true, null, $2.ident, $2.loc);
+                        $$.stmt = new Tree.Assign(l, $4.expr, $1.loc);
                     }
                 |   /* empty */
                 ;
@@ -550,7 +577,7 @@ Expr8           :   Expr9 ExprT8
                                     $$.expr = new Tree.CallExpr($$.expr, v.ident, v.elist, v.loc);
                                     $$.loc = v.loc;
                                 } else {
-                                    $$.expr = new Tree.Ident($$.expr, v.ident, v.loc);
+                                    $$.expr = new Tree.Ident(false, $$.expr, v.ident, v.loc);
                                     $$.loc = v.loc;
                                 }
                             }
@@ -627,7 +654,7 @@ Expr9           :   Constant
                         if ($2.elist != null) {
                             $$.expr = new Tree.CallExpr(null, $1.ident, $2.elist, $1.loc);
                         } else {
-                            $$.expr = new Tree.Ident(null, $1.ident, $1.loc);
+                            $$.expr = new Tree.Ident(false, null, $1.ident, $1.loc);
                         }
                     }
                 ;
@@ -729,9 +756,43 @@ BreakStmt       :   BREAK
                     }
                 ;
 
-IfStmt          :   IF '(' Expr ')' Stmt ElseClause
+IfOrGuard       :   '(' Expr ')' Stmt ElseClause
                     {
-                        $$.stmt = new Tree.If($3.expr, $5.stmt, $6.stmt, $1.loc);
+                        $$.stmt = new Tree.If($2.expr, $4.stmt, $5.stmt, $1.loc);
+                    }
+                |   '{' Guards '}'
+                    {
+                        $$.stmt = new Tree.Guards($2.glist, $2.loc);
+                    }
+                ;
+
+Guards          :   Guard NextGuard
+                    {
+                        $$.glist = new ArrayList<Tree.Guard>();
+						$$.glist.add($1.guard);
+						$$.glist.addAll($2.glist);
+                    }
+                |   /* empty */
+                    {
+                        $$.glist = new ArrayList<Tree.Guard>();
+                    }
+                ;
+
+NextGuard 		:	GUARD_SPLIT Guard NextGuard
+                    {
+                        $$.glist = new ArrayList<Tree.Guard>();
+                        $$.glist.add($2.guard);
+                        $$.glist.addAll($3.glist);
+                    }
+                |   /* empty */
+                    {
+                        $$.glist = new ArrayList<Tree.Guard>();
+                    }
+                ;
+
+Guard           :   Expr ':' Stmt
+                    {
+                        $$.guard = new Tree.Guard($1.expr, $3.stmt, $1.loc);
                     }
                 ;
 
